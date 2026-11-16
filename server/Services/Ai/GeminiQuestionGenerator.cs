@@ -18,6 +18,7 @@ public class GeminiQuestionGenerator : IQuestionGenerator
         - Focus on the important concepts. Skip course logistics such as dates, lecturer names, page numbers and exercise instructions.
         - The material was extracted automatically from a file and may contain broken lines or misplaced words. Infer the intended meaning and ignore extraction artifacts.
         - Multiple choice questions: exactly 4 options and exactly one correct option. Wrong options must be plausible. Do not use "all of the above" or "none of the above".
+        - Every option must differ in meaning from all the other options. Never include two options that are logically equivalent, even if they are worded differently (for example, "first in, first out" and "last in, last out" describe the same behavior).
         - For multiple choice questions, correctAnswer must be copied exactly, character for character, from one of the options.
         - Open questions: options is an empty list, and correctAnswer is a short model answer (1 to 3 sentences) that a teacher would accept.
         - explanation: 1 to 2 sentences explaining why the answer is correct, based on the material.

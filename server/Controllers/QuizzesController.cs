@@ -17,6 +17,9 @@ public class QuizzesController : ControllerBase
   private const int DailyQuizLimit = 20;
   private const int MaxTitleLength = 200;
 
+  // How many earlier questions on the same document are sent to the AI, so it can avoid repeating them.
+  private const int MaxQuestionsToAvoid = 40;
+
   private readonly AppDbContext _db;
   private readonly IQuestionGenerator _questionGenerator;
   private readonly ILogger<QuizzesController> _logger;
@@ -109,13 +112,21 @@ public class QuizzesController : ControllerBase
       });
     }
 
+    // The most recent questions asked on this document, so the new quiz does not repeat them.
+    var previousQuestions = await _db.Questions
+        .Where(q => q.Quiz.DocumentId == document.Id)
+        .OrderByDescending(q => q.Id)
+        .Select(q => q.Text)
+        .Take(MaxQuestionsToAvoid)
+        .ToListAsync(cancellationToken);
+
     GeneratedQuiz generated;
 
     try
     {
       generated = await _questionGenerator.GenerateAsync(
           document.ExtractedText,
-          new QuizGenerationOptions(request.MultipleChoiceCount, request.OpenCount),
+          new QuizGenerationOptions(request.MultipleChoiceCount, request.OpenCount, previousQuestions),
           cancellationToken);
     }
     catch (QuestionGenerationException ex)

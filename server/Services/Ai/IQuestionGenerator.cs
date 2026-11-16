@@ -10,7 +10,10 @@ public interface IQuestionGenerator
       CancellationToken cancellationToken = default);
 }
 
-public record QuizGenerationOptions(int MultipleChoiceCount, int OpenCount);
+public record QuizGenerationOptions(
+    int MultipleChoiceCount,
+    int OpenCount,
+    IReadOnlyList<string>? QuestionsToAvoid = null);
 
 public record GeneratedQuiz(string Title, List<GeneratedQuestion> Questions);
 
