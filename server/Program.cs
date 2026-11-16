@@ -52,13 +52,14 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSingleton<TextExtractionService>();
 
-// AI question generation: the provider is chosen in configuration ("Ai:Provider")
+// AI services: the provider is chosen in configuration ("Ai:Provider")
 var aiProvider = builder.Configuration["Ai:Provider"] ?? "Fake";
 
 switch (aiProvider.ToLowerInvariant())
 {
     case "fake":
         builder.Services.AddSingleton<IQuestionGenerator, FakeQuestionGenerator>();
+        builder.Services.AddSingleton<IAnswerGrader, FakeAnswerGrader>();
         break;
 
     case "gemini":
@@ -71,11 +72,14 @@ switch (aiProvider.ToLowerInvariant())
                 "Gemini API key is missing. Set it with: dotnet user-secrets set \"Gemini:ApiKey\" <value>");
         }
 
-        builder.Services.AddHttpClient<IQuestionGenerator, GeminiQuestionGenerator>(client =>
+        builder.Services.AddHttpClient<GeminiClient>(client =>
         {
             client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
             client.Timeout = TimeSpan.FromSeconds(90);
         });
+
+        builder.Services.AddScoped<IQuestionGenerator, GeminiQuestionGenerator>();
+        builder.Services.AddScoped<IAnswerGrader, GeminiAnswerGrader>();
         break;
 
     default:

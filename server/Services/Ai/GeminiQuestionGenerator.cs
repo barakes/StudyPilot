@@ -1,23 +1,13 @@
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using StudyPilot.Api.Models;
 
 namespace StudyPilot.Api.Services.Ai;
-
-public class GeminiSettings
-{
-  public const string SectionName = "Gemini";
-
-  public string ApiKey { get; set; } = string.Empty;
-  public string Model { get; set; } = "gemini-3.5-flash-lite";
-}
 
 public class GeminiQuestionGenerator : IQuestionGenerator
 {
   // Keeps each request well inside the free tier's tokens-per-minute limit.
   private const int MaxSourceCharacters = 100_000;
+  private const double Temperature = 0.4;
 
   private const string SystemPrompt = """
         You are an experienced teacher who writes high-quality practice quizzes for students.
@@ -63,18 +53,11 @@ public class GeminiQuestionGenerator : IQuestionGenerator
 
   private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-  private readonly HttpClient _httpClient;
-  private readonly GeminiSettings _settings;
-  private readonly ILogger<GeminiQuestionGenerator> _logger;
+  private readonly GeminiClient _gemini;
 
-  public GeminiQuestionGenerator(
-      HttpClient httpClient,
-      IOptions<GeminiSettings> options,
-      ILogger<GeminiQuestionGenerator> logger)
+  public GeminiQuestionGenerator(GeminiClient gemini)
   {
-    _httpClient = httpClient;
-    _settings = options.Value;
-    _logger = logger;
+    _gemini = gemini;
   }
 
   public async Task<GeneratedQuiz> GenerateAsync(
@@ -84,95 +67,20 @@ public class GeminiQuestionGenerator : IQuestionGenerator
   {
     var material = sourceText.Length > MaxSourceCharacters ? sourceText[..MaxSourceCharacters] : sourceText;
 
-    var requestBody = new
-    {
-      systemInstruction = new { parts = new[] { new { text = SystemPrompt } } },
-      contents = new[]
-        {
-                new { role = "user", parts = new[] { new { text = BuildUserPrompt(material, options) } } }
-            },
-      generationConfig = new
-      {
-        responseMimeType = "application/json",
-        responseJsonSchema = ResponseSchema,
-        temperature = 0.4
-      }
-    };
-
-    using var request = new HttpRequestMessage(HttpMethod.Post, $"v1beta/models/{_settings.Model}:generateContent")
-    {
-      Content = JsonContent.Create(requestBody, options: JsonOptions)
-    };
-    request.Headers.Add("x-goog-api-key", _settings.ApiKey);
-
-    HttpResponseMessage response;
-
-    try
-    {
-      response = await _httpClient.SendAsync(request, cancellationToken);
-    }
-    catch (HttpRequestException ex)
-    {
-      throw new QuestionGenerationException("Could not reach the AI service. Please try again.", ex);
-    }
-    catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-    {
-      throw new QuestionGenerationException("The AI service took too long to respond. Please try again.", ex);
-    }
-
-    using (response)
-    {
-      var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-      if (response.StatusCode == HttpStatusCode.TooManyRequests)
-      {
-        throw new QuestionGenerationException("The free AI quota has been reached. Please try again later.");
-      }
-
-      if (!response.IsSuccessStatusCode)
-      {
-        _logger.LogError("Gemini returned status {StatusCode}: {Body}", (int)response.StatusCode, body);
-        throw new QuestionGenerationException("The AI service returned an error. Please try again later.");
-      }
-
-      return ParseResponse(body, options);
-    }
-  }
-
-  private static string BuildUserPrompt(string material, QuizGenerationOptions options) =>
-      $"""
-        Create a quiz with exactly {options.MultipleChoiceCount} multiple choice questions and exactly {options.OpenCount} open questions, based on the following study material.
-
-        <material>
-        {material}
-        </material>
-        """;
-
-  private static GeneratedQuiz ParseResponse(string body, QuizGenerationOptions options)
-  {
     string json;
 
     try
     {
-      using var document = JsonDocument.Parse(body);
-
-      if (!document.RootElement.TryGetProperty("candidates", out var candidates)
-          || candidates.GetArrayLength() == 0
-          || !candidates[0].TryGetProperty("content", out var content)
-          || !content.TryGetProperty("parts", out var parts))
-      {
-        throw new QuestionGenerationException(
-            "The AI service did not return any questions. The document may have been blocked by its safety filters.");
-      }
-
-      // Skip "thought" parts, which some models return before the actual answer.
-      json = string.Concat(parts.EnumerateArray()
-          .Where(part => !(part.TryGetProperty("thought", out var thought) && thought.ValueKind == JsonValueKind.True))
-          .Select(part => part.TryGetProperty("text", out var text) ? text.GetString() : null));
+      json = await _gemini.GenerateJsonAsync(
+          SystemPrompt,
+          BuildUserPrompt(material, options),
+          ResponseSchema,
+          Temperature,
+          cancellationToken);
     }
-    catch (JsonException ex)
+    catch (GeminiException ex)
     {
-      throw new QuestionGenerationException("The AI service returned an invalid response. Please try again.", ex);
+      throw new QuestionGenerationException(ex.Message, ex);
     }
 
     GeminiQuiz? quiz;
@@ -213,6 +121,15 @@ public class GeminiQuestionGenerator : IQuestionGenerator
 
     return new GeneratedQuiz(quiz.Title ?? string.Empty, multipleChoice.Concat(open).ToList());
   }
+
+  private static string BuildUserPrompt(string material, QuizGenerationOptions options) =>
+      $"""
+        Create a quiz with exactly {options.MultipleChoiceCount} multiple choice questions and exactly {options.OpenCount} open questions, based on the following study material.
+
+        <material>
+        {material}
+        </material>
+        """;
 
   private sealed record GeminiQuiz(string? Title, List<GeminiQuestion>? Questions);
 
