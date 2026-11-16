@@ -49,6 +49,7 @@ builder.Services.AddAuthorization();
 
 // Application services
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddSingleton<TextExtractionService>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

@@ -24,3 +24,45 @@ Content-Type: application/json
 ### Get current user (requires login first)
 GET {{baseUrl}}/api/auth/me
 Authorization: Bearer {{login.response.body.token}}
+
+### Upload a text document (requires login first)
+# @name upload
+POST {{baseUrl}}/api/documents
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: multipart/form-data; boundary=StudyPilotBoundary
+
+--StudyPilotBoundary
+Content-Disposition: form-data; name="File"; filename="notes.txt"
+Content-Type: text/plain
+
+< ../samples/notes.txt
+--StudyPilotBoundary
+Content-Disposition: form-data; name="Title"
+
+Stack and Queue
+--StudyPilotBoundary--
+
+### Upload a PDF document (requires login first)
+# @name uploadPdf
+POST {{baseUrl}}/api/documents
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: multipart/form-data; boundary=StudyPilotBoundary
+
+--StudyPilotBoundary
+Content-Disposition: form-data; name="File"; filename="lecture5.pdf"
+Content-Type: application/pdf
+
+< ../samples/lecture5.pdf
+--StudyPilotBoundary--
+
+### List my documents (requires login first)
+GET {{baseUrl}}/api/documents
+Authorization: Bearer {{login.response.body.token}}
+
+### Get a single document (requires upload first)
+GET {{baseUrl}}/api/documents/{{upload.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
+
+### Delete a document (change the number at the end as needed)
+DELETE {{baseUrl}}/api/documents/3
+Authorization: Bearer {{login.response.body.token}}

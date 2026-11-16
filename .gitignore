@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+
+# Private test files
+samples/*.pdf
+samples/*.docx
+samples/*.pptx
