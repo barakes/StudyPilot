@@ -61,8 +61,25 @@ switch (aiProvider.ToLowerInvariant())
         builder.Services.AddSingleton<IQuestionGenerator, FakeQuestionGenerator>();
         break;
 
+    case "gemini":
+        var geminiSection = builder.Configuration.GetSection(GeminiSettings.SectionName);
+        builder.Services.Configure<GeminiSettings>(geminiSection);
+
+        if (string.IsNullOrWhiteSpace(geminiSection["ApiKey"]))
+        {
+            throw new InvalidOperationException(
+                "Gemini API key is missing. Set it with: dotnet user-secrets set \"Gemini:ApiKey\" <value>");
+        }
+
+        builder.Services.AddHttpClient<IQuestionGenerator, GeminiQuestionGenerator>(client =>
+        {
+            client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(90);
+        });
+        break;
+
     default:
-        throw new InvalidOperationException($"Unknown AI provider '{aiProvider}'. Supported providers: Fake.");
+        throw new InvalidOperationException($"Unknown AI provider '{aiProvider}'. Supported providers: Fake, Gemini.");
 }
 
 builder.Services.AddControllers();
