@@ -91,16 +91,31 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Apply any pending database migrations on startup, so a fresh database is ready to use.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// In production, the built React client is served from wwwroot by this same server.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Unknown API addresses return 404, instead of falling through to the client page below.
+app.Map("/api/{**path}", () => Results.NotFound());
+
+// Any other address belongs to the React app (for example /quizzes/5), so return its index.html.
+app.MapFallbackToFile("index.html");
 
 app.Run();
