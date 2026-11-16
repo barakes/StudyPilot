@@ -17,7 +17,9 @@ export function Layout() {
               המסמכים שלי
             </NavLink>
             <NavLink to="/history">ההתקדמות שלי</NavLink>
-            <span className="muted">שלום, {user?.displayName}</span>
+            <span className="muted nav-greeting">
+              שלום, {user?.displayName}
+            </span>
             <button type="button" className="btn-link" onClick={logout}>
               התנתקות
             </button>

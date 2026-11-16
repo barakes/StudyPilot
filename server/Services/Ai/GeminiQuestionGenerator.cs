@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using StudyPilot.Api.Models;
 
@@ -7,7 +8,9 @@ public class GeminiQuestionGenerator : IQuestionGenerator
 {
   // Keeps each request well inside the free tier's tokens-per-minute limit.
   private const int MaxSourceCharacters = 100_000;
-  private const double Temperature = 0.4;
+
+  // A little higher than for grading, so repeated quizzes on the same material are more varied.
+  private const double Temperature = 0.7;
 
   private const string SystemPrompt = """
         You are an experienced teacher who writes high-quality practice quizzes for students.
@@ -123,14 +126,38 @@ public class GeminiQuestionGenerator : IQuestionGenerator
     return new GeneratedQuiz(quiz.Title ?? string.Empty, multipleChoice.Concat(open).ToList());
   }
 
-  private static string BuildUserPrompt(string material, QuizGenerationOptions options) =>
-      $"""
-        Create a quiz with exactly {options.MultipleChoiceCount} multiple choice questions and exactly {options.OpenCount} open questions, based on the following study material.
+  private static string BuildUserPrompt(string material, QuizGenerationOptions options)
+  {
+    var builder = new StringBuilder();
 
-        <material>
-        {material}
-        </material>
-        """;
+    builder.AppendLine(
+        $"Create a quiz with exactly {options.MultipleChoiceCount} multiple choice questions " +
+        $"and exactly {options.OpenCount} open questions, based on the following study material.");
+    builder.AppendLine();
+    builder.AppendLine("<material>");
+    builder.AppendLine(material);
+    builder.AppendLine("</material>");
+
+    if (options.QuestionsToAvoid is { Count: > 0 })
+    {
+      builder.AppendLine();
+      builder.AppendLine(
+          "The student has already practiced the questions below on this material. " +
+          "Write new questions that test different facts, or the same concepts from a clearly different angle " +
+          "(for example: an example instead of a definition, a comparison, or applying the idea to a new case). " +
+          "Do not repeat or simply rephrase these questions.");
+      builder.AppendLine("<previous_questions>");
+
+      foreach (var question in options.QuestionsToAvoid)
+      {
+        builder.AppendLine($"- {question}");
+      }
+
+      builder.AppendLine("</previous_questions>");
+    }
+
+    return builder.ToString();
+  }
 
   private sealed record GeminiQuiz(string? Title, List<GeminiQuestion>? Questions);
 
