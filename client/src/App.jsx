@@ -8,6 +8,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentPage } from "./pages/DocumentPage";
 import { QuizPage } from "./pages/QuizPage";
 import { AttemptPage } from "./pages/AttemptPage";
+import { HistoryPage } from "./pages/HistoryPage";
 
 function NotFoundPage() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/documents/:id" element={<DocumentPage />} />
               <Route path="/quizzes/:id" element={<QuizPage />} />
               <Route path="/attempts/:id" element={<AttemptPage />} />
+              <Route path="/history" element={<HistoryPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Route>
