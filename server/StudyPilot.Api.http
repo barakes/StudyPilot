@@ -64,5 +64,25 @@ GET {{baseUrl}}/api/documents/{{upload.response.body.id}}
 Authorization: Bearer {{login.response.body.token}}
 
 ### Delete a document (change the number at the end as needed)
-DELETE {{baseUrl}}/api/documents/3
+DELETE {{baseUrl}}/api/documents/2
+Authorization: Bearer {{login.response.body.token}}
+
+### Generate a quiz from a document (requires login first)
+# @name generateQuiz
+POST {{baseUrl}}/api/quizzes
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "documentId": 1,
+  "multipleChoiceCount": 3,
+  "openCount": 2
+}
+
+### List my quizzes (requires login first)
+GET {{baseUrl}}/api/quizzes
+Authorization: Bearer {{login.response.body.token}}
+
+### Get a single quiz (requires generate first)
+GET {{baseUrl}}/api/quizzes/{{generateQuiz.response.body.id}}
 Authorization: Bearer {{login.response.body.token}}

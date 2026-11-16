@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StudyPilot.Api.Data;
 using StudyPilot.Api.Services;
+using StudyPilot.Api.Services.Ai;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,19 @@ builder.Services.AddAuthorization();
 // Application services
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSingleton<TextExtractionService>();
+
+// AI question generation: the provider is chosen in configuration ("Ai:Provider")
+var aiProvider = builder.Configuration["Ai:Provider"] ?? "Fake";
+
+switch (aiProvider.ToLowerInvariant())
+{
+    case "fake":
+        builder.Services.AddSingleton<IQuestionGenerator, FakeQuestionGenerator>();
+        break;
+
+    default:
+        throw new InvalidOperationException($"Unknown AI provider '{aiProvider}'. Supported providers: Fake.");
+}
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
